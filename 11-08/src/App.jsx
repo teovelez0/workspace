@@ -1,13 +1,11 @@
 import { useState, useEffect } from 'react';
 import './App.css';
 
-// Datos iniciales de tareas.
-// 👀 Miren con atención: una de estas tareas es distinta a las demás...
 const tareasIniciales = [
   { id: 1, texto: 'Aprender React', categoria: 'estudio', completada: false },
   { id: 2, texto: 'Hacer ejercicio', categoria: 'salud', completada: true },
   { id: 3, texto: 'Leer un libro', categoria: 'ocio', completada: false },
-  { id: 4, texto: 'Practicar debugging', completada: false },
+  { id: 4, texto: 'Practicar debugging', categoria: 'general', completada: false },
 ];
 
 function App() {
@@ -15,30 +13,33 @@ function App() {
   const [filtro, setFiltro] = useState('todas');
   const [contador, setContador] = useState(0);
 
-  // 🐛 BUG 2 — useEffect SIN arreglo de dependencias.
   useEffect(() => {
-    console.log('Renderizando App, contador:', contador);
-    setContador(contador + 1);
-  });
+    console.log('App renderizada, contador:', contador);
+  }, [contador]);
 
   const tareasFiltradas = tareas.filter((tarea) => {
     if (filtro === 'todas') return true;
-    if (filtro === 'completadas') return tarea.completada === 'true';
-    if (filtro === 'pendientes') return tarea.completada === 'false';
+    if (filtro === 'completadas') return tarea.completada === true;
+    if (filtro === 'pendientes') return tarea.completada === false;
     return true;
   });
 
   function agregarTarea(texto) {
-    if (!texto.trim()) return;
-    tareas.push({ id: Date.now(), texto, categoria: 'general', completada: false });
-    setTareas(tareas);
+    const valor = texto.trim();
+    if (!valor) return;
+
+    setTareas((tareasActuales) => [
+      ...tareasActuales,
+      { id: Date.now(), texto: valor, categoria: 'general', completada: false },
+    ]);
   }
 
   function completarTarea(id) {
-    const nuevasTareas = tareas.map((tarea) =>
-      tarea.id === id ? { ...tarea, completada: true } : tarea
+    setTareas((tareasActuales) =>
+      tareasActuales.map((tarea) =>
+        tarea.id === id ? { ...tarea, completada: true } : tarea
+      )
     );
-    setTareas(nuevasTareas);
   }
 
   return (
@@ -51,6 +52,11 @@ function App() {
         <button onClick={() => setFiltro('completadas')}>Completadas</button>
       </div>
 
+      <button className="contador-btn" onClick={() => setContador((actual) => actual + 1)}>
+        Incrementar contador
+      </button>
+      <p className="contador">Contador: {contador}</p>
+
       <ul className="lista-tareas">
         {tareasFiltradas.map((tarea) => (
           <li key={tarea.id} className={tarea.completada ? 'completada' : ''}>
@@ -62,6 +68,7 @@ function App() {
       </ul>
 
       <AgregarTarea onAgregar={agregarTarea} />
+      <RastreadorVentana />
       <PerfilUsuario />
     </div>
   );
@@ -88,25 +95,49 @@ function AgregarTarea({ onAgregar }) {
   );
 }
 
-function PerfilUsuario() {
-  const [usuario, setUsuario] = useState(null);
+function RastreadorVentana() {
+  const [ancho, setAncho] = useState(() => window.innerWidth);
 
   useEffect(() => {
-    obtenerUsuario();
+    const manejarResize = () => {
+      setAncho(window.innerWidth);
+    };
+
+    window.addEventListener('resize', manejarResize);
+
+    return () => {
+      window.removeEventListener('resize', manejarResize);
+    };
   }, []);
 
-  function obtenerUsuario() {
-    const exito = Math.random() > 0.5;
+  return <p className="perfil">Ancho de ventana: {ancho}px</p>;
+}
 
-    setTimeout(() => {
+function PerfilUsuario() {
+  const [usuario, setUsuario] = useState(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let cancelado = false;
+    const timer = setTimeout(() => {
+      if (cancelado) return;
+
+      const exito = Math.random() > 0.5;
+
       if (exito) {
         setUsuario({ nombre: 'Estudiante React' });
       } else {
-        throw new Error('No se pudo cargar el usuario');
+        setError('No se pudo cargar el usuario');
       }
     }, 1000);
-  }
 
+    return () => {
+      cancelado = true;
+      clearTimeout(timer);
+    };
+  }, []);
+
+  if (error) return <p className="perfil error">{error}</p>;
   if (!usuario) return <p className="perfil">Cargando perfil...</p>;
 
   return <p className="perfil">Perfil: {usuario.nombre}</p>;
